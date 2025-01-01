@@ -3,11 +3,11 @@ import numpy as np
 from datetime import datetime, timedelta
 
 # 父体标题
-title = 'Fancy Urban Vogue: Exquisitely Stylish Phone Cases Capturing City Glamour for women girls for iPhone.'
+title = 'Chic Silhouettes: Stylish Phone Cases for the Modern Woman for iPhone.'
 # 主题
-theme = 'City'
+theme = 'Multi'
 # 输入文件
-input_file = 'city_source.xlsx'
+input_file = 'multi_source.xlsx'
 # 划线价
 standard_price = 16.9
 # 卖价格
@@ -37,23 +37,36 @@ def generate_skus(input_file):
     从输入文件生成SKU信息
     返回一个包含所有变体信息的DataFrame
     """
-    # 读取输入文件
-    df = pd.read_excel(input_file)
+    # 读取输入文件，跳过可能的标题行
+    df = pd.read_excel(input_file, header=None)  # 不要自动设置标题行
     
-    # 获取颜色（列名）和尺寸（第一列）
-    colors = [col.strip().title() for col in df.columns[1:] if pd.notna(col)]  # 过滤掉NaN值
-    sizes = [size for size in df.iloc[:, 0].tolist() if pd.notna(size)]  # 过滤掉NaN值
+    # 打印原始数据，看看实际内容
+    print("Raw data from first row:", df.iloc[0, 1:].values)
+    print("Raw data from second row:", df.iloc[1, 1:].values)
+    print("Raw data type of second row:", type(df.iloc[1, 1:].values[0]))
+    
+    # 获取颜色（第一行）和尺寸（第一列，从第三行开始）
+    colors = [str(col).strip().title() for col in df.iloc[0, 1:] if pd.notna(col)]
+    sizes = [size for size in df.iloc[2:, 0].tolist() if pd.notna(size)]
+    
+    # 获取每个颜色对应的工厂编号（在第二行）
+    factory_codes = {}
+    for col_idx, color in enumerate(colors):
+        factory_num = str(df.iloc[1, col_idx + 1])
+        if factory_num.isdigit() and len(factory_num) == 1:
+            factory_num = f'0{factory_num}'
+        factory_codes[color] = factory_num
     
     # 准备存储所有SKU信息的列表
     sku_data = []
     
     # 生成基础SKU（父体）
     base_sku = {
-        "item_name": title,
+        "item_name": f"{title} - {theme}",  # 父体不需要工厂编号
         'item_sku': f'{theme}-BASE',
         'parent_child': 'Parent',
         'feed_product_type': 'cellularphonecase',
-        'update_delete': 'Update',
+        'update_delete': 'PartialUpdate',
         'brand_name': 'ChiCaseVer',
         'manufacturer': 'ChiCaseVer',
         'item_type': 'cell-phone-basic-cases',
@@ -67,6 +80,7 @@ def generate_skus(input_file):
     
     # 为每个颜色和尺寸组合生成变体SKU
     for color in colors:
+        factory_code = factory_codes[color]  # 获取当前颜色对应的工厂编号
         for size in sizes:
             simplified_size = simplify_model_name(size)
             child_sku = {
@@ -76,8 +90,8 @@ def generate_skus(input_file):
                 'parent_sku': f'{theme}-BASE',
                 'relationship_type': 'variation',
                 'brand_name': 'ChiCaseVer',
-                'update_delete': 'Update',
-                'item_name': f'Phone Case - {theme} - {color} - {simplified_size}',
+                'update_delete': 'PartialUpdate',
+                'item_name': f'Phone Case - {factory_code} - {theme} - {color} - {simplified_size}',
                 'manufacturer': 'ChiCaseVer',
                 'product_description': 'High quality phone case compatible with IPhone',
                 'item_type': 'cell-phone-basic-cases',
@@ -104,6 +118,22 @@ def generate_skus(input_file):
                 'sale_from_date': (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d'),
                 'sale_end_date': (datetime.now() + timedelta(days=365)).strftime('%Y-%m-%d'),
                 'variation_theme': 'SizeName-ColorName',
+                'item_height': '1',
+                'item_height_unit_of_measure': 'CM',
+                'item_width': '16.5',
+                'item_width_unit_of_measure': 'CM',
+                'item_length': '8',
+                'item_length_unit_of_measure': 'CM',
+                'item_weight': '0.05',
+                'item_weight_unit_of_measure': 'KG',
+                'package_height': '1',
+                'package_height_unit_of_measure': 'CM',
+                'package_width': '20',
+                'package_width_unit_of_measure': 'CM',
+                'package_length': '13',
+                'package_length_unit_of_measure': 'CM',
+                'package_weight': '0.05',
+                'package_weight_unit_of_measure': 'KG',
             }
             # 只添加有效的字段，不添加None或NaN值
             child_sku = {k: v for k, v in child_sku.items() if pd.notna(v)}
@@ -170,6 +200,7 @@ def main():
     
     print("转换完成！生成的文件：", output_file)
     print("中间SKU信息保存在：", debug_file)
+    
 
 if __name__ == "__main__":
     main() 
